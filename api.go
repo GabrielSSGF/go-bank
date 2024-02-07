@@ -30,7 +30,8 @@ func (server *APIServer) Run() {
 	router.HandleFunc("/login", makeHTTPHandleFunc(server.handleLogin))
 	router.HandleFunc("/account", makeHTTPHandleFunc(server.handleAccount))
 	router.HandleFunc("/account/{id}", withJWTAuth(makeHTTPHandleFunc(server.handleGetAccountByID), server.store))
-	router.HandleFunc("/transfer", makeHTTPHandleFunc(server.handleTransfer))
+	router.HandleFunc("/transfer", withJWTAuth(makeHTTPHandleFunc(server.handleTransfer), server.store))
+	router.HandleFunc("/deactivate", withJWTAuth(makeHTTPHandleFunc(server.handleDeactivateAccount), server.store))
 	log.Println("JSON API Server iniciado na porta: ", server.listenAddress)
 	http.ListenAndServe(server.listenAddress, router)
 }
@@ -57,6 +58,12 @@ func (server *APIServer) handleLogin(writer http.ResponseWriter, request *http.R
 	tokenString, err := createJWT(account)
 	if err != nil {
 		return err
+	}
+
+	if account.Status == "Inactive" {
+		if err := server.store.UpdateAccount("status", "Active", account); err != nil {
+			return err
+		}
 	}
 
 	response := LoginResponse{
@@ -142,6 +149,24 @@ func (server *APIServer) handleDeleteAccount(writer http.ResponseWriter, request
 		return err
 	}
 	return WriteJSON(writer, http.StatusOK, map[string]int{"deleted": id})
+}
+
+func (server *APIServer) handleDeactivateAccount(writer http.ResponseWriter, request *http.Request) error {
+	var loginRequest LoginRequest
+	if err := json.NewDecoder(request.Body).Decode(&loginRequest); err != nil {
+		return err
+	}
+
+	account, err := server.store.GetAccountByNumber(int(loginRequest.Number))
+	if err != nil {
+		return err
+	}
+
+	if err := server.store.UpdateAccount("status", "Inactive", account); err != nil {
+		return err
+	}
+
+	return WriteJSON(writer, http.StatusOK, map[string]string{"message": "Conta desativada com sucesso"})
 }
 
 func (server *APIServer) handleTransfer(writer http.ResponseWriter, request *http.Request) error {

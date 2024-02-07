@@ -22,10 +22,21 @@ type TransferRequest struct {
 	Amount    int   `json:"amount"`
 }
 
+type TransferResponse struct {
+	ToAccount int64 `json:"to_account"`
+	Amount    int   `json:"amount"`
+	Balance   int64 `json:"balance"`
+}
+
 type CreateAccountRequest struct {
 	FirstName         string `json:"first_name"`
 	LastName          string `json:"last_name"`
 	PasswordEncrypted string `json:"password"`
+}
+
+type DeactivateAccountRequest struct {
+	Number   int64  `json:"number"`
+	Password string `json:"password"`
 }
 
 type Account struct {
@@ -36,6 +47,7 @@ type Account struct {
 	PasswordEncrypted string    `json:"-"`
 	Balance           int64     `json:"balance"`
 	CreatedAt         time.Time `json:"created_at"`
+	Status            string    `json:"account_status"`
 }
 
 func (account *Account) ValidaPassword(password string) bool {
@@ -55,5 +67,6 @@ func NewAccount(firstName, lastName, password string) (*Account, error) {
 		PasswordEncrypted: string(senhaEncriptada),
 		Number:            int64(rand.Intn(100000)),
 		CreatedAt:         time.Now().UTC(),
+		Status:            "Active",
 	}, nil
 }
